@@ -1,16 +1,54 @@
 # Revisiting_and_Refining_AdaIN
 *Project of ECE285: Deep Generative Models*
 
-This project primarily concentrates on the enhancement of the AdaIn style transfer model through two fundamental alterations: the integration of multi-level style transfer and the replacement of the AdaIn Module with a style-attentional Module. While the conventional AdaIN model employs the COCO Dataset for content images and the Wikiart Dataset for style images, the focus of this project lies in broadening the model's adaptability through the incorporation of new datasets for evaluation. To this end, the project makes use of the Flickr Image Dataset for content images and the Painter by Numbers Dataset for style images.
+In this project, I revisited the Adaptive Instance Normalization (AdaIN) style transfer, a significant advancement in the domain of style transfer, that efficiently transforms the aesthetics of an image while maintaining its original content. The AdaIN model, notable for its high-quality real-time multi-style transfers, was not only reimplemented but was also improved upon. I introduced multi-level style transfer, applying the AdaIn module to various encoder levels instead of exclusively at the last level. The updated model generated more holistic and detailed stylized images, better retaining the original content. Further enhancement was made by replacing the AdaIn module with an attention module, improving the model's capacity to stylize images beyond color, also considering other features like texture and shape. Despite the enhancements, more work is needed to fully realize this potential. Overall, this project emphasizes the continued exploration and refinement in the field of style transfer, aiming to push the boundaries of this exciting field and broaden the adaptability of such models.
+
 
 ## Model Enhancement
-### Multi-level Style Transfer
-Departing from the traditional single-level approach, the proposed enhancement aims to implement a multi-level style transfer (Figure \ref{NewArch}). This approach allows for a more nuanced and enriched stylization process, resulting in superior output images.
 
-The proposed approach exploits the encoder's ability to extract hierarchical features at various levels, with each level capturing unique style information at different scales and complexities. Incorporating features from multiple encoder layers (specifically '$relu2\_1$' to '$relu4\_1$' in the implementation) deepens the richness of the style transfer by capturing stylistic elements at varying scales and abstraction levels. However, this method demands greater computational resources due to its comprehensive style representation.
+This project primarily concentrates on the enhancement of the AdaIn style transfer model through two fundamental alterations: the integration of multi-level style transfer and the replacement of the AdaIn Module with a style-attentional Module. While the conventional AdaIN model employs the COCO Dataset for content images and the Wikiart Dataset for style images, the focus of this project lies in broadening the model's adaptability through the incorporation of new datasets for evaluation. To this end, the project makes use of the Flickr Image Dataset for content images and the Painter by Numbers Dataset for style images.
+
+### Multi-level Style Transfer
+Departing from the traditional single-level approach, the proposed enhancement aims to implement a multi-level style transfer (Figure 3). This approach allows for a more nuanced and enriched stylization process, resulting in superior output images.
+
+<img width="800" alt="image" src="https://github.com/GAOChengzhan/Revisiting_and_Refining_AdaIN/assets/39005000/afbcf35a-7543-48d0-be78-296149265877">
+
+In this figure, $I_c$ and $I_S$ denote the content and style images respectively, while $L_C$ and $L_S$ symbolize the corresponding content and style losses.
+
+The proposed approach exploits the encoder's ability to extract hierarchical features at various levels, with each level capturing unique style information at different scales and complexities. Incorporating features from multiple encoder layers (specifically $relu2\_1$ to $relu4\_1$ in the implementation) deepens the richness of the style transfer by capturing stylistic elements at varying scales and abstraction levels. However, this method demands greater computational resources due to its comprehensive style representation.
 
 ### Loss Function Modification
+
 Transitioning from single-level to multi-level style transfer necessitates an adaptation in the structure of the loss function. Given the AdaIN model's tendency to overfit and compromise content integrity, and the need to accommodate the multi-level architecture, I significantly modify the content loss function while the overall and style loss functions remain consistent:
+
+```math
+L_{content} = \Sigma_{i=2}^{L}||\phi^i(r)-Adain(\phi^i(c),\phi^i(s))||_2
+```
+In the equation above, $\phi_{i}(\cdot)$ continues to signify the $i^{th}$ layer in the VGG-19 model, while $r$, $c$, and $s$ denote the output image post-decoder, the content image, and the style image, respectively.
+
+The content loss now calculates the sum of the Mean Squared Errors (MSE) between the stylized image's feature map and the AdaIN function's transformed results at each level. This updated content loss function ensures consistency between the stylized image's feature map and the AdaIN transformation outputs, with the aim to preserve the original image's content while successfully integrating the multi-level style characteristics. This function takes into account the differences between the content feature maps of the target and output images at multiple levels, thus improving the original image's content preservation quality. Further enhancement could involve adding a weighting coefficient to the MSE at each level, although this might increase the complexity of hyperparameter tuning, it could potentially yield better results.
+
+<img height="300" alt="image" src="https://github.com/GAOChengzhan/Revisiting_and_Refining_AdaIN/assets/39005000/696a0f42-d410-4ec3-8243-a7117f8b211f">
+<img height="300" alt="image" src="https://github.com/GAOChengzhan/Revisiting_and_Refining_AdaIN/assets/39005000/6921d0d5-9b68-413c-865c-5a4ffad89b98">
+
+
+### Style Attentional Module
+To take the proposed enhancements a step further, the AdaIn module was replaced with a more nuanced Style-Attentional Module(\cite{park2019arbitrary}) as depicted in Figure \ref{fig:attnmodel}. This alteration addresses a notable limitation of the AdaIn module, which simplifies the transformation process by aligning only the global statistics of the style and content images. While this simplification enables efficient style transfer, it occasionally overlooks intricate style details that could be essential for capturing the authentic essence of the style image. This potential oversight can cause the style transfer to be superficial and even lead to overfitting.
+
+To circumvent this shortcoming, the Style-Attentional Module employs a self-attention mechanism that formulates a more detailed style representation and a precise matching process between the content and style features (Figure \ref{fig:attnModule}). This method enhances the ability of the model to capture and transfer nuanced stylistic details.
+
+The self-attention mechanism weighs the importance of different style features based on their relevance to the content features. In essence, the module identifies which style features are more important or relevant in the context of the given content image. These important features are then emphasized during the style transfer process, ensuring a more faithful and nuanced rendering of the style.
+
+The Style-Attentional Module processes the content and style features separately through two distinct attention mechanisms — one for spatial attention and the other for channel attention. These separate outputs are then combined to generate the final stylized features. The attention mechanisms are implemented as convolutions with trainable weights, which are optimized during the training process to best match the content and style features.
+
+The operation of the module can be represented as follows:
+```math
+S_{out} = h(F_S) \otimes (Softmax(f(Norm(F_C))^T \otimes g(Norm(F_S))))^T 
+```
+
+In this equation, $F_c$ and $F_s$ denote the content and style features, while f, g, and h are 1 × 1 learnable convolution layers, Norm denotes channel-wise mean-variance normalization, respectively. $\otimes$ denotes element-wise multiplication.
+
+By enabling the model to adapt the content and style features in a more attentive manner, the Style-Attentional Module leads to a more detailed and accurate style transfer. This module can capture the unique attributes of the style image better and simultaneously preserve the integrity of the content. It is important to note, however, that the integration of attention mechanisms increases the complexity and computational demands of the model. But given the enhanced quality of style transfer, this trade-off seems well justified. Future work could explore ways to reduce this computational burden without compromising the model's performance.
 
 ## Results and Discussion
 
